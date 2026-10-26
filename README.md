@@ -28,7 +28,7 @@ graph LR
 - **export:** `model.sysml` holds every requirement as a SysML v2 `requirement` (id as short name, text as `doc`, findings and the suggested rewrite as comments), plus a named `dependency` for each duplicate or conflict.
 - **rewrite:** for every requirement with findings, the LLM suggests a fixed version. Missing values become `[TBD: ...]` instead of invented numbers.
 
-The LLM is Groq `openai/gpt-oss-120b` by default (`REQAGENT_LLM=gemini` switches to Gemini). With `LANGSMITH_TRACING=true` every run is traced in LangSmith. The tests use a fake model, so CI never calls an API.
+The LLM is Groq `openai/gpt-oss-120b` by default (`REQAGENT_LLM=gemini` switches to Gemini). Answers are requested as strict JSON schema output. A client-side rate limiter keeps runs inside the free tiers (default 0.2 requests/s for Groq, set `REQAGENT_RPS` to change it), so the 15-requirement sample takes about a minute and `reqagent eval` a few minutes. A failed LLM call is skipped and listed under `errors` in the report instead of stopping the run. With `LANGSMITH_TRACING=true` every run is traced in LangSmith. The tests use a fake model, so CI never calls an API.
 
 Input is a CSV with `id,text` columns, or a `.txt` file with one requirement per line. The tool writes `report.json`, `report.md` and `model.sysml`.
 

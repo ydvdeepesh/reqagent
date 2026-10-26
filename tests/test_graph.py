@@ -56,4 +56,11 @@ def test_one_failed_llm_call_does_not_stop_the_run():
 def test_structured_output_uses_json_schema():
     llm = FakeLLM(answer)
     run(REQS, llm=llm, embeddings=BagOfWords([r.text for r in REQS]))
-    assert llm.kwargs == {"method": "json_schema"}
+    assert llm.kwargs == {"method": "json_schema", "strict": True}
+
+
+def test_rewrite_step_can_be_skipped():
+    llm = FakeLLM(answer)
+    out = run(REQS, llm=llm, embeddings=BagOfWords([r.text for r in REQS]), rewrite=False)
+    assert out["rewrites"] == {}
+    assert len(llm.prompts) == 1  # only the P1/P2 pair review

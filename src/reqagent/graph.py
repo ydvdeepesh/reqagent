@@ -1,7 +1,7 @@
 """The ReqAgent pipeline as a LangGraph graph.
 
 rules ──> embed ──> candidates ──> review_pairs ──> END
-  └────────────────> rewrite ─────────────────────> END
+  └────────────────> rewrite ─────────────────────> END   (optional; eval skips it)
 """
 
 import operator
@@ -33,12 +33,13 @@ class State(TypedDict, total=False):
 
 def _batch(llm, schema, prompts):
     """Run prompts in parallel; one failed call becomes an exception in its slot, not a crash."""
-    # json_schema: Groq's default tool-calling mode rejects answers given as plain text
-    model = llm.with_structured_output(schema, method="json_schema")
+    # strict json_schema: tool-calling mode rejected plain-text answers, and non-strict
+    # json_schema let gpt-oss echo the schema back instead of filling it in
+    model = llm.with_structured_output(schema, method="json_schema", strict=True)
     return model.batch(prompts, config={"max_concurrency": CONCURRENCY}, return_exceptions=True)
 
 
-def build(llm, embeddings):
+def build(llm, embeddings, with_rewrite: bool = True):
     def rules(s: State):
         return {"findings": {r.id: check(r) for r in s["requirements"]}}
 
@@ -83,7 +84,7 @@ def build(llm, embeddings):
                 )
         return {"pairs": pairs, "errors": errors}
 
-    def rewrite(s: State):
+    def rewrite_node(s: State):
         todo = [r for r in s["requirements"] if s["findings"][r.id]]
         out = _batch(llm, Rewrite, [rewrite_messages(r, s["findings"][r.id]) for r in todo])
         rewrites, errors = {}, []
@@ -100,7 +101,6 @@ def build(llm, embeddings):
         ("embed", embed),
         ("candidates", candidates),
         ("review_pairs", review_pairs),
-        ("rewrite", rewrite),
     ]:
         g.add_node(name, fn)
     g.add_edge(START, "rules")
@@ -108,12 +108,13 @@ def build(llm, embeddings):
     g.add_edge("embed", "candidates")
     g.add_edge("candidates", "review_pairs")
     g.add_edge("review_pairs", END)
-    g.add_edge("rules", "rewrite")
-    g.add_edge("rewrite", END)
+    if with_rewrite:
+        g.add_node("rewrite", rewrite_node)
+        g.add_edge("rules", "rewrite")
+        g.add_edge("rewrite", END)
     return g.compile()
 
 
-def run(requirements: list[Requirement], llm, embeddings) -> State:
-    return build(llm, embeddings).invoke(
-        {"requirements": requirements, "rewrites": {}, "errors": []}
-    )
+def run(requirements: list[Requirement], llm, embeddings, rewrite: bool = True) -> State:
+    graph = build(llm, embeddings, with_rewrite=rewrite)
+    return graph.invoke({"requirements": requirements, "rewrites": {}, "errors": []})

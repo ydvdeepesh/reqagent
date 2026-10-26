@@ -71,7 +71,8 @@ def _eval(args) -> int:
         except (RuntimeError, ValueError) as e:
             print(f"error: {e}", file=sys.stderr)
             return 2
-        out = run([r for r, _ in examples], llm=llm, embeddings=LocalEmbeddings())
+        # the eval only scores pairs, so skip the rewrite calls
+        out = run([r for r, _ in examples], llm=llm, embeddings=LocalEmbeddings(), rewrite=False)
         gold = evaluate.load_pairs(args.pairs)
         pairs = evaluate.score_pairs(gold, out["pairs"], out["candidates"])
         pairs["llm_errors"] = len(out["errors"])

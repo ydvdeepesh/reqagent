@@ -3,8 +3,11 @@
 import os
 
 from langchain_core.embeddings import Embeddings
+from langchain_core.rate_limiters import InMemoryRateLimiter
 
 DEFAULT_MODELS = {"groq": "openai/gpt-oss-120b", "gemini": "gemini-2.5-flash"}
+# Free tiers: Groq gpt-oss-120b allows 8000 tokens/min (~12 calls), Gemini Flash ~10 calls/min.
+DEFAULT_RPS = {"groq": 0.2, "gemini": 0.15}
 KEY_VARS = {"groq": "GROQ_API_KEY", "gemini": "GOOGLE_API_KEY"}
 
 
@@ -18,13 +21,18 @@ def chat_model():
             "`uv run --env-file .env reqagent ...`, or use --rules-only."
         )
     model = os.getenv("REQAGENT_MODEL", DEFAULT_MODELS[provider])
+    rps = float(os.getenv("REQAGENT_RPS", DEFAULT_RPS[provider]))
+    common = {"model": model, "temperature": 0, "max_retries": 5}
+    common["rate_limiter"] = InMemoryRateLimiter(requests_per_second=rps, max_bucket_size=1)
     if provider == "groq":
         from langchain_groq import ChatGroq
 
-        return ChatGroq(model=model, temperature=0, max_retries=5)
+        # low reasoning effort cuts the hidden reasoning tokens that count against the limit
+        extra = {"reasoning_effort": "low"} if "gpt-oss" in model else {}
+        return ChatGroq(**common, **extra)
     from langchain_google_genai import ChatGoogleGenerativeAI
 
-    return ChatGoogleGenerativeAI(model=model, temperature=0, max_retries=5)
+    return ChatGoogleGenerativeAI(**common)
 
 
 class LocalEmbeddings(Embeddings):
