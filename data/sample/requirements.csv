@@ -1,0 +1,16 @@
+id,text
+PUMP-1,The pump controller shall stop the pump within 200 ms of a stop command.
+PUMP-2,The pump controller shall stop the pump quickly when the operator presses the stop button.
+PUMP-3,The pump shall not run dry.
+PUMP-4,The pump controller shall log every start and stop event with a timestamp.
+PUMP-5,The flow rate shall be displayed on the operator panel.
+PUMP-6,The pump controller shall support Modbus TCP and/or CAN.
+PUMP-7,"The pump controller shall report faults, warnings, etc. to the SCADA system."
+PUMP-8,The operator panel should be easy to use.
+PUMP-9,The pump controller shall minimize energy consumption.
+PUMP-10,The pump controller shall restart the pump automatically if possible.
+PUMP-11,The pressure sensor shall send its reading to the controller every 100 ms.
+PUMP-12,The pump controller shall keep the outlet pressure between 2.0 bar and 2.5 bar.
+PUMP-13,The pump controller shall stop the pump within 500 ms of a stop command.
+PUMP-14,The battery backup shall power the controller for at least one hour.
+PUMP-15,The pump controller shall raise an alarm when the inlet pressure drops below 0.5 bar. The pump controller shall stop the pump at the same time.
