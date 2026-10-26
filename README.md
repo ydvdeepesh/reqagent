@@ -2,7 +2,7 @@
 
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
-Status: stage 5 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page. See [docs/design.md](docs/design.md) for the full plan.
+Status: stage 6 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page, packaged as a Docker image and tested on Kubernetes in CI. See [docs/design.md](docs/design.md) for the full plan.
 
 ## Try it
 
@@ -103,3 +103,23 @@ Prompt change, measured: the first pair prompt called a conflict "both cannot be
 Embedding prefilter: 16 of 17 gold pairs (0.941) were similar enough to reach the LLM, while only about 35 of the 5,050 possible pairs were sent.
 
 Full table: [eval/results.md](eval/results.md). Most misses are irregular passives ("sent", "shown", "kept") and vague words outside the list. Most false alarms come from "minimum"/"maximum"/"at least" used with a defined reference instead of a number. Those cases are what the LLM rewrite step is for.
+
+## Docker and Kubernetes
+
+```bash
+docker build -t reqagent .
+docker run --env-file .env -p 8000:8000 reqagent
+```
+
+The image bakes in the embedding model and runs with `HF_HUB_OFFLINE=1`, so containers start without network downloads. It runs as a non-root user and has a health check.
+
+```bash
+kubectl create secret generic reqagent-secrets --from-env-file=.env
+kubectl apply -f deploy/k8s/
+kubectl port-forward service/reqagent 8000:80
+```
+
+CI (`.github/workflows/ci.yml`) runs three jobs:
+1. **test:** lint and tests (fake LLM, no API calls).
+2. **kind:** builds the image, starts a throwaway Kubernetes cluster with kind, deploys `deploy/k8s/`, waits for the rollout and calls `/health` and `/analyze`.
+3. **publish:** on `main`, pushes the image to `ghcr.io/ydvdeepesh/reqagent` tagged `latest` and with the commit SHA.
