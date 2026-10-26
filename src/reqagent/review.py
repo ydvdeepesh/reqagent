@@ -20,9 +20,13 @@ class Rewrite(BaseModel):
 
 PAIR_SYSTEM = """You review pairs of system requirements for a systems engineer.
 Label the pair:
-- duplicate: both state the same obligation, even if worded differently.
-- conflict: both cannot be satisfied at once, e.g. different limits for the same behaviour.
-- unrelated: anything else, including requirements that are similar but compatible.
+- duplicate: both state the same obligation with the same values, even if worded differently.
+- conflict: both constrain the same behaviour or property but disagree. This includes
+  different values for the same limit, even when meeting the stricter one would also meet
+  the looser one (e.g. "stop within 200 ms" vs "stop within 500 ms"): the specification is
+  inconsistent and someone has to decide which value is right. It also includes
+  requirements that cannot both be satisfied.
+- unrelated: they constrain different behaviours or properties.
 Judge only what the text says. Do not assume context that is not written."""
 
 REWRITE_SYSTEM = """You rewrite one system requirement so it passes a requirements review.
