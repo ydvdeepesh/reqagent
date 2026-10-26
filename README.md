@@ -2,14 +2,32 @@
 
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
-Status: stage 1 of 7. The rule checks and the command-line tool work. See [docs/design.md](docs/design.md) for the full plan.
+Status: stage 2 of 7. Rule checks, duplicate and conflict detection, and suggested rewrites work from the command line. See [docs/design.md](docs/design.md) for the full plan.
 
 ## Try it
 
 ```bash
 uv sync
-uv run reqagent analyze data/sample/requirements.csv --out reqagent-report
+cp .env.example .env   # add GROQ_API_KEY (free tier), optionally LANGSMITH_API_KEY
+uv run --env-file .env reqagent analyze data/sample/requirements.csv
+uv run reqagent analyze data/sample/requirements.csv --rules-only   # no keys needed
 ```
+
+## How it works
+
+```mermaid
+graph LR
+  rules --> embed --> candidates --> review_pairs --> done((report))
+  rules --> rewrite --> done
+```
+
+- **rules:** deterministic smell checks (table below). Cheap, testable, explainable.
+- **embed:** local embedding model (`BAAI/bge-small-en-v1.5` via fastembed), no API key.
+- **candidates:** ChromaDB nearest neighbours; only pairs above 0.75 cosine similarity go to the LLM, so cost grows with the number of similar pairs instead of n².
+- **review_pairs:** the LLM labels each candidate pair duplicate, conflict or unrelated, with a reason.
+- **rewrite:** for every requirement with findings, the LLM suggests a fixed version. Missing values become `[TBD: ...]` instead of invented numbers.
+
+The LLM is Groq `openai/gpt-oss-120b` by default (`REQAGENT_LLM=gemini` switches to Gemini). With `LANGSMITH_TRACING=true` every run is traced in LangSmith. The tests use a fake model, so CI never calls an API.
 
 Input is a CSV with `id,text` columns, or a `.txt` file with one requirement per line. The tool writes `report.json` and `report.md`.
 

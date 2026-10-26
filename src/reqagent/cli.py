@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from . import report
+from .llm import LocalEmbeddings, chat_model
 from .parse import parse
 from .rules import check
 
@@ -14,15 +15,29 @@ def main(argv: list[str] | None = None) -> int:
     an = sub.add_parser("analyze", help="check a requirements file (.csv with id,text or .txt)")
     an.add_argument("file", type=Path)
     an.add_argument("--out", type=Path, default=Path("reqagent-report"))
+    an.add_argument("--rules-only", action="store_true", help="skip embeddings and the LLM")
     args = ap.parse_args(argv)
 
     reqs = parse(args.file.read_text(encoding="utf-8"), args.file.name)
-    rep = report.build([(r, check(r)) for r in reqs])
+    if args.rules_only:
+        rep = report.build([(r, check(r)) for r in reqs])
+    else:
+        from .graph import run
+
+        try:
+            llm = chat_model()
+        except (RuntimeError, ValueError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        out = run(reqs, llm=llm, embeddings=LocalEmbeddings())
+        results = [(r, out["findings"][r.id]) for r in reqs]
+        rep = report.build(results, pairs=out["pairs"], rewrites=out["rewrites"])
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
     (args.out / "report.md").write_text(report.to_markdown(rep), encoding="utf-8")
     s = rep["summary"]
     print(f"{s['with_findings']}/{s['requirements']} requirements with findings: {s['by_code']}")
+    print(f"duplicates: {s['duplicates']}, conflicts: {s['conflicts']}")
     print(f"Report written to {args.out}/")
     return 0
 
