@@ -77,13 +77,16 @@ uv run reqagent eval --rules-only                  # rule checks only
 uv run --env-file .env reqagent eval --langsmith   # adds LLM pair review and a LangSmith experiment
 ```
 
-Rule checks, latest run:
+Latest run (Groq `openai/gpt-oss-120b`, 0 failed LLM calls):
 
-| Smell | Precision | Recall |
+| | Precision | Recall |
 |---|---|---|
-| All smells (micro) | 0.945 | 0.867 |
-| PASSIVE | 1.0 | 0.727 |
-| VAGUE | 1.0 | 0.824 |
-| UNBOUNDED | 0.5 | 0.75 |
+| Rule checks, all smells (micro) | 0.945 | 0.867 |
+| Rule checks, PASSIVE | 1.0 | 0.727 |
+| Rule checks, VAGUE | 1.0 | 0.824 |
+| Rule checks, UNBOUNDED | 0.5 | 0.75 |
+| Duplicate and conflict pairs | 0.938 | 0.882 |
+
+Embedding prefilter: 16 of 17 gold pairs (0.941) were similar enough to reach the LLM, while only about 35 of the 5,050 possible pairs were sent.
 
 Full table: [eval/results.md](eval/results.md). Most misses are irregular passives ("sent", "shown", "kept") and vague words outside the list. Most false alarms come from "minimum"/"maximum"/"at least" used with a defined reference instead of a number. Those cases are what the LLM rewrite step is for.

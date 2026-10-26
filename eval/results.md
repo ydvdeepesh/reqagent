@@ -12,3 +12,11 @@
 | UNBOUNDED | 0.5 | 0.75 | 3 | 3 | 1 |
 | NO_SHALL | 1.0 | 1.0 | 5 | 0 | 0 |
 | ALL | 0.945 | 0.867 | 52 | 3 | 8 |
+
+## Duplicate and conflict pairs
+
+- Model: Groq openai/gpt-oss-120b
+- Candidate recall (gold pairs that reached the LLM): 0.941
+- Precision: 0.938 · Recall: 0.882
+- TP 15 · FP 1 · FN 2
+- Failed LLM calls (skipped): 0
