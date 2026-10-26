@@ -15,6 +15,7 @@ def test_analyze_writes_json_and_markdown(tmp_path):
     assert [r["id"] for r in report["requirements"]] == ["R1", "R2"]
     assert report["summary"]["by_code"] == {"VAGUE": 1}
     assert report["requirements"][1]["findings"] == []
+    assert "requirement <'R1'> R1 {" in (out / "model.sysml").read_text()
     md = (out / "report.md").read_text()
     assert "R1" in md and "VAGUE" in md
 
@@ -42,6 +43,7 @@ def test_full_run_uses_llm_and_embeddings(tmp_path, monkeypatch):
     assert report["summary"]["conflicts"] == 1
     assert report["requirements"][2]["rewrite"]["text"] == "The display shall [TBD]."
     assert "Duplicates and conflicts" in (out / "report.md").read_text()
+    assert "_conflicts_with_" in (out / "model.sysml").read_text()
 
 
 def test_missing_api_key_gives_a_clear_error(tmp_path, monkeypatch, capsys):

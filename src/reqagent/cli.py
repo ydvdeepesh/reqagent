@@ -7,6 +7,7 @@ from . import report
 from .llm import LocalEmbeddings, chat_model
 from .parse import parse
 from .rules import check
+from .sysml import to_sysml
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -20,7 +21,9 @@ def main(argv: list[str] | None = None) -> int:
 
     reqs = parse(args.file.read_text(encoding="utf-8"), args.file.name)
     if args.rules_only:
-        rep = report.build([(r, check(r)) for r in reqs])
+        findings = {r.id: check(r) for r in reqs}
+        rep = report.build([(r, findings[r.id]) for r in reqs])
+        model = to_sysml(reqs, findings=findings)
     else:
         from .graph import run
 
@@ -32,9 +35,11 @@ def main(argv: list[str] | None = None) -> int:
         out = run(reqs, llm=llm, embeddings=LocalEmbeddings())
         results = [(r, out["findings"][r.id]) for r in reqs]
         rep = report.build(results, pairs=out["pairs"], rewrites=out["rewrites"])
+        model = to_sysml(reqs, out["pairs"], out["findings"], out["rewrites"])
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
     (args.out / "report.md").write_text(report.to_markdown(rep), encoding="utf-8")
+    (args.out / "model.sysml").write_text(model, encoding="utf-8")
     s = rep["summary"]
     print(f"{s['with_findings']}/{s['requirements']} requirements with findings: {s['by_code']}")
     print(f"duplicates: {s['duplicates']}, conflicts: {s['conflicts']}")
