@@ -4,10 +4,9 @@ import sys
 from pathlib import Path
 
 from . import report
+from .analyze import analyze
 from .llm import LocalEmbeddings, chat_model
 from .parse import parse
-from .rules import check
-from .sysml import to_sysml
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,27 +22,28 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--rules-only", action="store_true", help="skip the LLM pair evaluation")
     ev.add_argument("--out", type=Path, default=Path("eval/results.md"))
     ev.add_argument("--langsmith", action="store_true", help="also log a LangSmith experiment")
+    sv = sub.add_parser("serve", help="run the web page and HTTP API")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8000)
     args = ap.parse_args(argv)
     if args.cmd == "eval":
         return _eval(args)
+    if args.cmd == "serve":
+        import uvicorn
+
+        uvicorn.run("reqagent.api:app", host=args.host, port=args.port)
+        return 0
 
     reqs = parse(args.file.read_text(encoding="utf-8"), args.file.name)
     if args.rules_only:
-        findings = {r.id: check(r) for r in reqs}
-        rep = report.build([(r, findings[r.id]) for r in reqs])
-        model = to_sysml(reqs, findings=findings)
+        rep, model = analyze(reqs)
     else:
-        from .graph import run
-
         try:
             llm = chat_model()
         except (RuntimeError, ValueError) as e:
             print(f"error: {e}", file=sys.stderr)
             return 2
-        out = run(reqs, llm=llm, embeddings=LocalEmbeddings())
-        results = [(r, out["findings"][r.id]) for r in reqs]
-        rep = report.build(results, out["pairs"], out["rewrites"], out["errors"])
-        model = to_sysml(reqs, out["pairs"], out["findings"], out["rewrites"])
+        rep, model = analyze(reqs, llm=llm, embeddings=LocalEmbeddings())
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
     (args.out / "report.md").write_text(report.to_markdown(rep), encoding="utf-8")

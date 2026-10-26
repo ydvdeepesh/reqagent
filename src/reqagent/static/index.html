@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReqAgent</title>
+<style>
+  :root { --bg: #fafaf9; --fg: #1c1917; --muted: #57534e; --line: #d6d3d1; --accent: #1d4ed8; --warn: #b45309; --bad: #b91c1c; --card: #fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1917; --fg: #f5f5f4; --muted: #a8a29e; --line: #44403c; --accent: #93c5fd; --warn: #fbbf24; --bad: #fca5a5; --card: #292524; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  p.lead { margin: 0 0 20px; color: var(--muted); }
+  textarea { width: 100%; min-height: 200px; padding: 10px; font: 13px/1.4 ui-monospace, monospace; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 10px 0 24px; }
+  button { padding: 8px 16px; font: inherit; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
+  button.secondary { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .5; cursor: wait; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #status { color: var(--muted); }
+  #status.error { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 24px; background: var(--card); }
+  th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--line); }
+  th { font-size: .85rem; color: var(--muted); }
+  .code { font: 600 12px ui-monospace, monospace; color: var(--warn); }
+  .conflict { color: var(--bad); font-weight: 600; }
+  .rewrite { margin-top: 6px; color: var(--muted); }
+  pre { overflow-x: auto; padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ReqAgent</h1>
+  <p class="lead">Checks requirements for quality smells, finds duplicates and conflicts, suggests rewrites and exports SysML v2.</p>
+
+  <label for="input">Requirements: one per line, or CSV with <code>id,text</code> columns</label>
+  <textarea id="input" spellcheck="false">The pump controller shall stop the pump within 200 ms of a stop command.
+The pump controller shall stop the pump quickly when the operator presses the stop button.
+The flow rate shall be displayed on the operator panel.
+The pump controller shall stop the pump within 500 ms of a stop command.</textarea>
+
+  <div class="row">
+    <button id="run">Analyze</button>
+    <label><input type="file" id="file" accept=".csv,.txt"> Load file</label>
+    <label><input type="checkbox" id="rulesOnly"> Rule checks only (no LLM)</label>
+    <span id="status" role="status" aria-live="polite"></span>
+  </div>
+
+  <section id="results" hidden>
+    <h2>Summary</h2>
+    <p id="summary"></p>
+    <div id="pairsBlock" hidden>
+      <h2>Duplicates and conflicts</h2>
+      <div class="table-wrap"><table><thead><tr><th>Pair</th><th>Label</th><th>Reason</th></tr></thead><tbody id="pairs"></tbody></table></div>
+    </div>
+    <h2>Requirements</h2>
+    <div class="table-wrap"><table><thead><tr><th>ID</th><th>Requirement</th><th>Findings</th></tr></thead><tbody id="reqs"></tbody></table></div>
+    <h2>SysML v2</h2>
+    <button class="secondary" id="download">Download model.sysml</button>
+    <pre id="sysml"></pre>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  let filename = "input.txt";
+
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    filename = f.name;
+    $("input").value = await f.text();
+  });
+  $("input").addEventListener("input", () => { if (!/\.csv$/i.test(filename)) filename = "input.txt"; });
+
+  $("run").addEventListener("click", async () => {
+    const status = $("status");
+    status.className = "";
+    status.textContent = $("rulesOnly").checked ? "Checking…" : "Analyzing (LLM calls are rate-limited, this can take a minute)…";
+    $("run").disabled = true;
+    try {
+      const res = await fetch("analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: $("input").value, filename, rules_only: $("rulesOnly").checked }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
+      render(data);
+      status.textContent = "Done.";
+    } catch (err) {
+      status.className = "error";
+      status.textContent = "Error: " + err.message;
+    } finally {
+      $("run").disabled = false;
+    }
+  });
+
+  function render({ report, sysml }) {
+    const s = report.summary;
+    $("summary").textContent = `${s.with_findings} of ${s.requirements} requirements have findings · ${s.duplicates} duplicates · ${s.conflicts} conflicts` + (s.llm_errors ? ` · ${s.llm_errors} LLM calls failed` : "");
+    $("pairsBlock").hidden = report.pairs.length === 0;
+    $("pairs").innerHTML = report.pairs.map((p) =>
+      `<tr><td>${esc(p.a)} / ${esc(p.b)}</td><td class="${p.label === "conflict" ? "conflict" : ""}">${esc(p.label)}</td><td>${esc(p.reason)}</td></tr>`).join("");
+    $("reqs").innerHTML = report.requirements.map((r) => {
+      const found = r.findings.map((f) => `<div><span class="code">${esc(f.code)}</span> “${esc(f.match)}”: ${esc(f.message)}</div>`).join("") || "none";
+      const rw = r.rewrite ? `<div class="rewrite">Suggested: ${esc(r.rewrite.text)}</div>` : "";
+      return `<tr><td>${esc(r.id)}</td><td>${esc(r.text)}</td><td>${found}${rw}</td></tr>`;
+    }).join("");
+    $("sysml").textContent = sysml;
+    $("results").hidden = false;
+  }
+
+  $("download").addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([$("sysml").textContent], { type: "text/plain" }));
+    Object.assign(document.createElement("a"), { href: url, download: "model.sysml" }).click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>

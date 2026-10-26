@@ -2,7 +2,7 @@
 
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
-Status: stage 4 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line. See [docs/design.md](docs/design.md) for the full plan.
+Status: stage 5 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page. See [docs/design.md](docs/design.md) for the full plan.
 
 ## Try it
 
@@ -11,7 +11,18 @@ uv sync
 cp .env.example .env   # add GROQ_API_KEY (free tier), optionally LANGSMITH_API_KEY
 uv run --env-file .env reqagent analyze data/sample/requirements.csv
 uv run reqagent analyze data/sample/requirements.csv --rules-only   # no keys needed
+uv run --env-file .env reqagent serve    # web page at http://127.0.0.1:8000
 ```
+
+## HTTP API
+
+| Method | Path | Body / result |
+|---|---|---|
+| GET | `/` | Web page: paste or upload requirements, see findings, pairs, rewrites, download SysML |
+| GET | `/health` | `{"status": "ok"}` |
+| POST | `/analyze` | `{"content": "...", "filename": "reqs.csv", "rules_only": false}` → `{"report": {...}, "sysml": "..."}` |
+
+Interactive API docs are at `/docs`. Limits: 200 requirements and 200 kB per request. A missing API key or an embedding model that cannot load returns 503 with the reason; bad input returns 400.
 
 ## How it works
 
