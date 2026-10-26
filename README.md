@@ -96,7 +96,9 @@ Latest run (Groq `openai/gpt-oss-120b`, 0 failed LLM calls):
 | Rule checks, PASSIVE | 1.0 | 0.727 |
 | Rule checks, VAGUE | 1.0 | 0.824 |
 | Rule checks, UNBOUNDED | 0.5 | 0.75 |
-| Duplicate and conflict pairs | 0.938 | 0.882 |
+| Duplicate and conflict pairs | 0.889 | 0.941 |
+
+Prompt change, measured: the first pair prompt called a conflict "both cannot be satisfied at once", so the model passed "stop within 200 ms" vs "stop within 500 ms" as compatible. Redefining conflict as "different values for the same limit" moved pair precision/recall from 0.938/0.882 to 0.889/0.941: one more real conflict found, one more false alarm.
 
 Embedding prefilter: 16 of 17 gold pairs (0.941) were similar enough to reach the LLM, while only about 35 of the 5,050 possible pairs were sent.
 

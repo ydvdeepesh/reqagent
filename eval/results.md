@@ -17,6 +17,7 @@
 
 - Model: Groq openai/gpt-oss-120b
 - Candidate recall (gold pairs that reached the LLM): 0.941
-- Precision: 0.938 · Recall: 0.882
-- TP 15 · FP 1 · FN 2
+- Precision: 0.889 · Recall: 0.941
+- TP 16 · FP 2 · FN 1
+- Previous prompt: Precision 0.938 · Recall 0.882 · TP 15 · FP 1 · FN 2
 - Failed LLM calls (skipped): 0
