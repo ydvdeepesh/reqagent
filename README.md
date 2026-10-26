@@ -2,7 +2,7 @@
 
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
-Status: stage 3 of 7. Rule checks, duplicate and conflict detection, suggested rewrites and SysML v2 export work from the command line. See [docs/design.md](docs/design.md) for the full plan.
+Status: stage 4 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line. See [docs/design.md](docs/design.md) for the full plan.
 
 ## Try it
 
@@ -67,3 +67,23 @@ dependency PUMP_1_conflicts_with_PUMP_13 from PUMP_1 to PUMP_13 {
 ```
 
 SysML v2 has no built-in duplicate or conflict relationship, so the label is in the dependency name and its doc comment.
+
+## Evaluation
+
+`eval/labelled.csv` has 101 requirements from 11 domains (braking, infusion pumps, train doors, drones, a web portal, battery management, HVAC, a satellite, an ATM, an industrial robot, general software). Each one is labelled with its smells. `eval/pairs.csv` lists 5 duplicate and 12 conflict pairs. The set deliberately includes smells the word lists miss ("comfortable", "safe", "shall be sent") and text that only looks like a smell ("below the minimum mark", "at least once per second").
+
+```bash
+uv run reqagent eval --rules-only                  # rule checks only
+uv run --env-file .env reqagent eval --langsmith   # adds LLM pair review and a LangSmith experiment
+```
+
+Rule checks, latest run:
+
+| Smell | Precision | Recall |
+|---|---|---|
+| All smells (micro) | 0.945 | 0.867 |
+| PASSIVE | 1.0 | 0.727 |
+| VAGUE | 1.0 | 0.824 |
+| UNBOUNDED | 0.5 | 0.75 |
+
+Full table: [eval/results.md](eval/results.md). Most misses are irregular passives ("sent", "shown", "kept") and vague words outside the list. Most false alarms come from "minimum"/"maximum"/"at least" used with a defined reference instead of a number. Those cases are what the LLM rewrite step is for.

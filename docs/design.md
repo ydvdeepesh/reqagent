@@ -74,7 +74,7 @@ Tracing: LangSmith, through the standard `LANGSMITH_*` environment variables. It
 
 ## Evaluation
 
-- `eval/labelled.csv`: about 100 requirements (PURE sample plus hand-written edge cases), each labelled with its smells, plus a list of known duplicate and conflict pairs.
+- `eval/labelled.csv`: 101 hand-written requirements from 11 domains, each labelled with its smells, plus `eval/pairs.csv` with known duplicate and conflict pairs. A PURE sample can be added later.
 - `eval/run.py`: per-smell precision and recall for the rule checks, and accuracy for the pair review. Results are uploaded to LangSmith as an experiment when a key is set.
 - The README shows the latest numbers.
 

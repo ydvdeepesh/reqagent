@@ -1,0 +1,102 @@
+id,text,smells
+BRK-1,The brake controller shall apply full braking pressure within 150 ms of an emergency brake request.,
+BRK-2,The brake controller shall apply full braking pressure within 300 ms of an emergency brake request.,
+BRK-3,The brake system shall be reliable.,VAGUE
+BRK-4,The ABS shall prevent wheel lock-up on dry asphalt at speeds up to 200 km/h.,
+BRK-5,The brake warning lamp shall be activated when the brake fluid level is below the minimum mark.,PASSIVE
+BRK-6,The brake controller shall log every ABS intervention and/or ESC intervention.,COMBINATOR
+BRK-7,The parking brake shall hold the vehicle on a 20% gradient.,
+BRK-8,The brake controller shall not release the parking brake while the engine is off.,NEGATIVE
+BRK-9,"When an emergency brake request is received, the brake controller shall reach full braking pressure in 150 ms or less.",
+BRK-10,The brake pedal feel should be comfortable for the driver.,NO_SHALL VAGUE
+INF-1,The infusion pump shall deliver the programmed volume with an accuracy of ±5%.,
+INF-2,The infusion pump shall sound an occlusion alarm within 30 s of a downstream occlusion.,
+INF-3,The occlusion alarm shall be sounded within 60 s of a downstream occlusion.,PASSIVE
+INF-4,The infusion pump shall be easy to program for nurses.,VAGUE
+INF-5,"The infusion pump shall store the last 1000 alarms, events, etc.",OPEN
+INF-6,The infusion pump shall resume infusion after a power failure if possible.,ESCAPE
+INF-7,The battery shall power the pump for at least 4 hours without mains supply.,
+INF-8,The battery shall power the pump for a sufficient time without mains supply.,VAGUE
+INF-9,The infusion pump shall display the remaining volume. It shall update every second.,PRONOUN COMBINATOR
+INF-10,The drug library shall be sent to the pump over an encrypted connection.,PASSIVE
+INF-11,The infusion pump shall maximize battery life.,UNBOUNDED
+INF-12,The infusion pump shall stop the infusion when the door is opened.,
+DOR-1,The door controller shall keep all passenger doors locked while the train speed is above 3 km/h.,
+DOR-2,The door controller shall allow the passenger doors to open at speeds below 8 km/h.,
+DOR-3,The doors shall close quickly.,VAGUE
+DOR-4,The door controller shall detect an obstacle of 30 mm or larger between closing door leaves.,
+DOR-5,"The door controller shall reopen the door when an obstacle is detected, as far as practicable.",ESCAPE
+DOR-6,The doors shall not open on the side away from the platform.,NEGATIVE
+DOR-7,The door status shall be shown to the driver on the cab display.,PASSIVE
+DOR-8,The door controller shall report its status to the train control system every 500 ms.,PRONOUN
+DOR-9,The door controller must keep all passenger doors locked when the train is moving faster than 3 km/h.,
+DOR-10,The door system will be maintained by depot staff.,
+UAV-1,The flight controller shall return the drone to its launch point when the battery charge drops below 20%.,PRONOUN
+UAV-2,The flight controller shall land the drone when the battery charge drops below 10%.,
+UAV-3,The drone shall fly as long as possible.,UNBOUNDED
+UAV-4,The flight controller shall hold altitude within ±0.5 m in winds up to 10 m/s.,
+UAV-5,The flight controller shall hold altitude within ±2 m in winds up to 10 m/s.,
+UAV-6,The camera gimbal shall be stabilised.,PASSIVE
+UAV-7,"The ground station shall show the drone's position, altitude, speed and so on.",OPEN
+UAV-8,The drone should avoid obstacles.,NO_SHALL
+UAV-9,The flight controller shall never exceed an altitude of 120 m above ground level.,NEGATIVE
+UAV-10,The flight controller shall always log GPS position at 10 Hz.,UNBOUNDED
+WEB-1,The portal shall load the dashboard within 2 s for 95% of requests at 500 concurrent users.,
+WEB-2,The portal shall be fast.,VAGUE
+WEB-3,The portal shall support login with username and password as well as single sign-on.,COMBINATOR
+WEB-4,The portal shall lock a user account after 5 failed login attempts.,
+WEB-5,The portal shall lock a user account after 3 failed login attempts.,
+WEB-6,Passwords shall be stored as salted hashes.,PASSIVE
+WEB-7,The portal shall provide an intuitive user interface.,VAGUE
+WEB-8,"The portal shall export reports in PDF, CSV, etc.",OPEN
+WEB-9,The portal shall be available 99.9% of the time per calendar month.,
+WEB-10,The portal should support mobile browsers.,NO_SHALL
+WEB-11,Users shall be able to reset their password by email.,PRONOUN
+WEB-12,After five unsuccessful login attempts the portal shall lock the user account.,
+WEB-13,The portal shall use the Fast Identity Online (FIDO2) standard for passkeys.,
+WEB-14,The portal shall keep audit logs for some time.,VAGUE
+BMS-1,The BMS shall disconnect the battery when any cell voltage exceeds 4.25 V.,
+BMS-2,The BMS shall disconnect the battery when any cell voltage exceeds 4.35 V.,
+BMS-3,The BMS shall estimate the state of charge with an error of no more than 3%.,
+BMS-4,The BMS shall balance cells efficiently.,VAGUE
+BMS-5,The BMS shall measure each cell temperature at least once per second.,
+BMS-6,Cell temperatures shall be kept below 60 °C during charging.,PASSIVE
+BMS-7,The BMS shall not allow charging below 0 °C.,NEGATIVE
+BMS-8,"The BMS shall report state of charge, state of health and/or cell voltages to the vehicle controller.",COMBINATOR
+BMS-9,The BMS shall minimise balancing losses.,UNBOUNDED
+BMS-10,The BMS shall open the main contactor if any cell voltage rises above 4.25 V.,
+HVAC-1,The HVAC controller shall keep the office temperature between 20 °C and 24 °C during working hours.,
+HVAC-2,The HVAC controller shall keep the office temperature at a comfortable level.,VAGUE
+HVAC-3,The HVAC controller shall switch to night mode at 20:00 and switch back to day mode at 06:00.,COMBINATOR
+HVAC-4,The HVAC controller shall reduce fan speed where feasible.,ESCAPE
+HVAC-5,Filter replacement shall be signalled after 2000 operating hours.,PASSIVE
+HVAC-6,The HVAC controller shall log energy use every 15 minutes.,
+HVAC-7,The HVAC system shall be energy efficient.,VAGUE
+HVAC-8,The HVAC controller shall respond to setpoint changes in a timely manner.,VAGUE
+SAT-1,The on-board computer shall switch to safe mode within 10 s of detecting a power bus undervoltage.,
+SAT-2,The on-board computer shall downlink housekeeping telemetry every 60 s.,
+SAT-3,Housekeeping telemetry shall be downlinked every 30 s.,PASSIVE
+SAT-4,The attitude control system shall point the payload with an accuracy of 0.1 degrees.,
+SAT-5,The on-board software shall be robust against single event upsets.,VAGUE
+SAT-6,The on-board computer shall store telemetry when it has no ground contact.,PRONOUN
+SAT-7,The on-board computer shall support the maximum data rate of the transceiver.,
+SAT-8,The solar array drive shall track the sun.,
+ATM-1,The ATM shall dispense cash within 10 s of a confirmed withdrawal.,
+ATM-2,The ATM shall retain the card after 3 wrong PIN entries.,
+ATM-3,The card shall be retained after three wrong PIN entries.,PASSIVE
+ATM-4,The ATM shall print a receipt if necessary.,ESCAPE
+ATM-5,The ATM shall support many languages.,VAGUE
+ATM-6,The ATM shall not dispense more than EUR 1000 per day per card.,NEGATIVE
+ATM-7,The ATM shall display the balance.,
+ATM-8,The ATM display shall be readable in direct sunlight.,
+ROB-1,The robot controller shall stop all axes within 100 ms when the light curtain is interrupted.,
+ROB-2,The robot shall move at a safe speed near operators.,VAGUE
+ROB-3,The robot controller shall limit tool speed to 250 mm/s in collaborative mode.,
+ROB-4,The robot controller shall limit tool speed to 500 mm/s in collaborative mode.,
+ROB-5,Emergency stop signals shall be processed with the highest priority.,PASSIVE
+ROB-6,The robot controller shall record each collision and the joint torques at that moment.,
+ROB-7,"The robot shall be programmable by operators, maintenance staff, etc.",OPEN
+GEN-1,The system logs all user actions.,NO_SHALL
+GEN-2,The application may cache results for up to 24 hours.,NO_SHALL
+GEN-3,The system shall perform adequately under normal load.,VAGUE
+GEN-4,The system shall support approximately 1000 users.,VAGUE
