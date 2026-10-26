@@ -8,6 +8,7 @@ def build(
     results: list[tuple[Requirement, list[Finding]]],
     pairs: list[dict] | None = None,
     rewrites: dict | None = None,
+    errors: list[str] | None = None,
 ) -> dict:
     counts = Counter(f.code for _, findings in results for f in findings)
     rewrites = rewrites or {}
@@ -18,7 +19,9 @@ def build(
             "by_code": dict(sorted(counts.items())),
             "duplicates": sum(1 for p in pairs or [] if p["label"] == "duplicate"),
             "conflicts": sum(1 for p in pairs or [] if p["label"] == "conflict"),
+            "llm_errors": len(errors or []),
         },
+        "errors": errors or [],
         "pairs": pairs or [],
         "requirements": [
             {

@@ -39,3 +39,21 @@ def test_dissimilar_requirements_never_reach_the_llm():
     llm = FakeLLM(answer)
     run([REQS[0], REQS[3]], llm=llm, embeddings=BagOfWords([r.text for r in REQS]))
     assert llm.prompts == []
+
+
+def test_one_failed_llm_call_does_not_stop_the_run():
+    def flaky(schema, prompt):
+        if schema is Rewrite:
+            raise ValueError("Tool choice is required, but model did not call a tool")
+        return PairVerdict(label="conflict", reason="200 ms vs 500 ms")
+
+    out = run(REQS, llm=FakeLLM(flaky), embeddings=BagOfWords([r.text for r in REQS]))
+    assert [p["label"] for p in out["pairs"]] == ["conflict"]  # pair review still finished
+    assert out["rewrites"] == {}
+    assert len(out["errors"]) == 1 and "P3" in out["errors"][0]
+
+
+def test_structured_output_uses_json_schema():
+    llm = FakeLLM(answer)
+    run(REQS, llm=llm, embeddings=BagOfWords([r.text for r in REQS]))
+    assert llm.kwargs == {"method": "json_schema"}

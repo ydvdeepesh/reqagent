@@ -13,7 +13,9 @@ class FakeLLM:
         self.answer = answer
         self.prompts: list[str] = []
 
-    def with_structured_output(self, schema):
+    def with_structured_output(self, schema, **kwargs):
+        self.kwargs = kwargs
+
         def run(messages):
             text = "\n".join(m.content for m in messages)
             self.prompts.append(text)

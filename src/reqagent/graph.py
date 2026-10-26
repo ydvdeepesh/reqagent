@@ -28,6 +28,14 @@ class State(TypedDict, total=False):
     candidates: list[tuple[str, str, float]]
     pairs: list[dict]
     rewrites: Annotated[dict, operator.or_]
+    errors: Annotated[list[str], operator.add]  # both LLM nodes append here
+
+
+def _batch(llm, schema, prompts):
+    """Run prompts in parallel; one failed call becomes an exception in its slot, not a crash."""
+    # json_schema: Groq's default tool-calling mode rejects answers given as plain text
+    model = llm.with_structured_output(schema, method="json_schema")
+    return model.batch(prompts, config={"max_concurrency": CONCURRENCY}, return_exceptions=True)
 
 
 def build(llm, embeddings):
@@ -62,27 +70,29 @@ def build(llm, embeddings):
     def review_pairs(s: State):
         by_id = {r.id: r for r in s["requirements"]}
         cands = s["candidates"]
-        judge = llm.with_structured_output(PairVerdict)
-        verdicts = judge.batch(
-            [pair_messages(by_id[a], by_id[b]) for a, b, _ in cands],
-            config={"max_concurrency": CONCURRENCY},
+        verdicts = _batch(
+            llm, PairVerdict, [pair_messages(by_id[a], by_id[b]) for a, b, _ in cands]
         )
-        return {
-            "pairs": [
-                {"a": a, "b": b, "similarity": sim, "label": v.label, "reason": v.reason}
-                for (a, b, sim), v in zip(cands, verdicts, strict=True)
-                if v.label != "unrelated"
-            ]
-        }
+        pairs, errors = [], []
+        for (a, b, sim), v in zip(cands, verdicts, strict=True):
+            if isinstance(v, Exception):
+                errors.append(f"pair {a}/{b}: {v}")
+            elif v.label != "unrelated":
+                pairs.append(
+                    {"a": a, "b": b, "similarity": sim, "label": v.label, "reason": v.reason}
+                )
+        return {"pairs": pairs, "errors": errors}
 
     def rewrite(s: State):
         todo = [r for r in s["requirements"] if s["findings"][r.id]]
-        writer = llm.with_structured_output(Rewrite)
-        out = writer.batch(
-            [rewrite_messages(r, s["findings"][r.id]) for r in todo],
-            config={"max_concurrency": CONCURRENCY},
-        )
-        return {"rewrites": {r.id: o.model_dump() for r, o in zip(todo, out, strict=True)}}
+        out = _batch(llm, Rewrite, [rewrite_messages(r, s["findings"][r.id]) for r in todo])
+        rewrites, errors = {}, []
+        for r, o in zip(todo, out, strict=True):
+            if isinstance(o, Exception):
+                errors.append(f"rewrite {r.id}: {o}")
+            else:
+                rewrites[r.id] = o.model_dump()
+        return {"rewrites": rewrites, "errors": errors}
 
     g = StateGraph(State)
     for name, fn in [
@@ -104,4 +114,6 @@ def build(llm, embeddings):
 
 
 def run(requirements: list[Requirement], llm, embeddings) -> State:
-    return build(llm, embeddings).invoke({"requirements": requirements, "rewrites": {}})
+    return build(llm, embeddings).invoke(
+        {"requirements": requirements, "rewrites": {}, "errors": []}
+    )

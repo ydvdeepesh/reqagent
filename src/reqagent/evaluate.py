@@ -69,6 +69,7 @@ def to_markdown(rules: dict, pairs: dict | None) -> str:
         )
         lines.append(f"- Precision: {pairs['precision']} · Recall: {pairs['recall']}")
         lines.append(f"- TP {pairs['tp']} · FP {pairs['fp']} · FN {pairs['fn']}")
+        lines.append(f"- Failed LLM calls (skipped): {pairs.get('llm_errors', 0)}")
     return "\n".join(lines) + "\n"
 
 

@@ -42,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         out = run(reqs, llm=llm, embeddings=LocalEmbeddings())
         results = [(r, out["findings"][r.id]) for r in reqs]
-        rep = report.build(results, pairs=out["pairs"], rewrites=out["rewrites"])
+        rep = report.build(results, out["pairs"], out["rewrites"], out["errors"])
         model = to_sysml(reqs, out["pairs"], out["findings"], out["rewrites"])
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     s = rep["summary"]
     print(f"{s['with_findings']}/{s['requirements']} requirements with findings: {s['by_code']}")
     print(f"duplicates: {s['duplicates']}, conflicts: {s['conflicts']}")
+    if s["llm_errors"]:
+        print(f"warning: {s['llm_errors']} LLM call(s) failed, see 'errors' in report.json")
     print(f"Report written to {args.out}/")
     return 0
 
@@ -72,6 +74,9 @@ def _eval(args) -> int:
         out = run([r for r, _ in examples], llm=llm, embeddings=LocalEmbeddings())
         gold = evaluate.load_pairs(args.pairs)
         pairs = evaluate.score_pairs(gold, out["pairs"], out["candidates"])
+        pairs["llm_errors"] = len(out["errors"])
+        for e in out["errors"]:
+            print(f"warning: {e}", file=sys.stderr)
     if args.langsmith:
         evaluate.to_langsmith(examples)
     md = evaluate.to_markdown(rules, pairs)
