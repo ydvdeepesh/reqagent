@@ -1,5 +1,7 @@
 # ReqAgent
 
+**Live demo:** https://reqagent.graybeach-f9d0c697.belgiumcentral.azurecontainerapps.io (scales to zero, so the first request can take up to a minute; LLM runs are limited to 10 per hour per visitor)
+
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
 Status: stage 7 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page, packaged as a Docker image and tested on Kubernetes in CI. See [docs/design.md](docs/design.md) for the full plan.
