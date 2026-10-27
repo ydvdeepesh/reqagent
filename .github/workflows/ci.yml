@@ -61,3 +61,30 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+  deploy:
+    # Roll the new image out to Azure Container Apps. Runs only after scripts/azure-setup.ps1
+    # has set the repo variables and OIDC secrets.
+    needs: publish
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.AZURE_RESOURCE_GROUP != ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - run: |
+          az extension add --name containerapp --upgrade --yes --only-show-errors
+          az containerapp update -n "${{ vars.AZURE_APP_NAME }}" -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "ghcr.io/${{ github.repository }}:${{ github.sha }}" --only-show-errors -o none
+      - name: Smoke test
+        run: |
+          fqdn=$(az containerapp show -n "${{ vars.AZURE_APP_NAME }}" -g "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "https://$fqdn"
+          # scale-to-zero: the first request starts a container, so allow a cold start
+          curl -fsS --retry 12 --retry-delay 10 --retry-all-errors "https://$fqdn/health"

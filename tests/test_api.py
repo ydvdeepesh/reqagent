@@ -82,3 +82,28 @@ def test_embedding_model_failure_is_a_503(monkeypatch):
     monkeypatch.setattr(api, "get_embeddings", offline)
     r = TestClient(api.app).post("/analyze", json={"content": TEXTS[0]})
     assert r.status_code == 503 and "Embedding model" in r.json()["detail"]
+
+
+def test_llm_runs_are_limited_per_client(client, monkeypatch):
+    monkeypatch.setattr(api, "LIMITER", api.RateLimiter(per_hour=2))
+    body = {"content": TEXTS[0]}
+    assert client.post("/analyze", json=body).status_code == 200
+    assert client.post("/analyze", json=body).status_code == 200
+    r = client.post("/analyze", json=body)
+    assert r.status_code == 429 and "Retry-After" in r.headers
+    # rules-only stays open
+    assert client.post("/analyze", json=body | {"rules_only": True}).status_code == 200
+    # another caller (last X-Forwarded-For entry, added by the ingress) has its own budget
+    other = {"X-Forwarded-For": "198.51.100.7"}
+    assert client.post("/analyze", json=body, headers=other).status_code == 200
+    assert client.post("/analyze", json=body, headers=other).status_code == 200
+    # a forged first entry does not buy that caller a fresh budget
+    forged = {"X-Forwarded-For": "1.2.3.4, 198.51.100.7"}
+    assert client.post("/analyze", json=body, headers=forged).status_code == 429
+
+
+def test_rate_limiter_window_slides():
+    lim = api.RateLimiter(per_hour=1)
+    assert lim.allow("a", now=0) == 0
+    assert lim.allow("a", now=10) > 0  # seconds to wait
+    assert lim.allow("a", now=3601) == 0

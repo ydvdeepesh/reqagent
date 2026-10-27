@@ -2,7 +2,7 @@
 
 ReqAgent reviews natural-language requirements the way a systems engineer would on a first pass. It flags quality problems (vague terms, escape clauses, passive voice and more), and will find duplicates and conflicts with an LLM and export the set as SysML v2.
 
-Status: stage 6 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page, packaged as a Docker image and tested on Kubernetes in CI. See [docs/design.md](docs/design.md) for the full plan.
+Status: stage 7 of 7. Rule checks, duplicate and conflict detection, suggested rewrites, SysML v2 export and an evaluation against a labelled set work from the command line, an HTTP API and a web page, packaged as a Docker image and tested on Kubernetes in CI. See [docs/design.md](docs/design.md) for the full plan.
 
 ## Try it
 
@@ -123,3 +123,17 @@ CI (`.github/workflows/ci.yml`) runs three jobs:
 1. **test:** lint and tests (fake LLM, no API calls).
 2. **kind:** builds the image, starts a throwaway Kubernetes cluster with kind, deploys `deploy/k8s/`, waits for the rollout and calls `/health` and `/analyze`.
 3. **publish:** on `main`, pushes the image to `ghcr.io/ydvdeepesh/reqagent` tagged `latest` and with the commit SHA.
+
+## Azure deployment
+
+The app runs on Azure Container Apps (0.5 CPU, 1 GiB, scales to zero, at most one replica). One-time setup, from the repo root in PowerShell after `az login`:
+
+```powershell
+.\scripts\azure-setup.ps1
+```
+
+The script walks through each step and waits for Enter before running it. It creates a resource group with a Container Apps environment and the app, and stores API keys from `.env` as Container Apps secrets. It also creates an Entra app registration that GitHub Actions can use through OIDC (no stored password, Contributor on the resource group only). Re-running it is safe.
+
+After that, every push to `main` runs the `deploy` job: OIDC login, `az containerapp update` to the new image (tagged with the commit SHA), and a `/health` check against the public URL.
+
+LLM analyses are limited to 10 per hour per caller (`REQAGENT_LLM_RUNS_PER_HOUR`), so a public URL cannot use up the free-tier quota. Rule checks stay unlimited. The caller is identified by the last `X-Forwarded-For` entry, the one the Azure ingress adds, so a forged header does not reset the limit.
