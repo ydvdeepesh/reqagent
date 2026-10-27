@@ -144,11 +144,22 @@ $idName = "reqagent-github"
 if (-not (Test-Az identity show -n $idName -g $ResourceGroup)) { Invoke-Az identity create -n $idName -g $ResourceGroup -l $Location -o none }
 $identity = Invoke-Az identity show -n $idName -g $ResourceGroup -o json | ConvertFrom-Json
 $appId = $identity.clientId
-$fedName = "github-main"
-if (-not (Test-Az identity federated-credential show -n $fedName --identity-name $idName -g $ResourceGroup)) {
-    Invoke-Az identity federated-credential create -n $fedName --identity-name $idName -g $ResourceGroup `
-        --issuer "https://token.actions.githubusercontent.com" --subject "repo:${Repo}:ref:refs/heads/main" `
-        --audiences "api://AzureADTokenExchange" -o none
+# GitHub sends either the classic subject (repo:owner/name:...) or, for newer repos, one with
+# immutable IDs (repo:owner@<id>/name@<id>:...). Register both so either one matches.
+$subjects = @{ "github-main" = "repo:${Repo}:ref:refs/heads/main" }
+try {
+    $gh = Invoke-RestMethod "https://api.github.com/repos/$Repo"
+    $owner, $name = $Repo.Split("/")
+    $subjects["github-main-ids"] = "repo:$owner@$($gh.owner.id)/$name@$($gh.id):ref:refs/heads/main"
+} catch {
+    Write-Host "Could not read repo IDs from the GitHub API; registering the classic subject only." -ForegroundColor Yellow
+}
+foreach ($fedName in $subjects.Keys) {
+    if (-not (Test-Az identity federated-credential show -n $fedName --identity-name $idName -g $ResourceGroup)) {
+        Invoke-Az identity federated-credential create -n $fedName --identity-name $idName -g $ResourceGroup `
+            --issuer "https://token.actions.githubusercontent.com" --subject $subjects[$fedName] `
+            --audiences "api://AzureADTokenExchange" -o none
+    }
 }
 $scope = "/subscriptions/$SubId/resourceGroups/$ResourceGroup"
 $principal = $identity.principalId
