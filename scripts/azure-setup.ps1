@@ -17,6 +17,7 @@
 #>
 param(
     [string]$ResourceGroup = "reqagent-rg",
+    # Azure for Students only allows some regions; list yours with the command in the README.
     [string]$Location = "germanywestcentral",
     [string]$EnvName = "reqagent-env",
     [string]$AppName = "reqagent",
@@ -96,7 +97,9 @@ if (-not $pullable) {
 Step 2 "Resource group and Container Apps environment" "Registers the Container Apps providers, creates resource group '$ResourceGroup' in $Location and environment '$EnvName' (takes 2-4 minutes)."
 Invoke-Az provider register --namespace Microsoft.App --wait | Out-Null
 Invoke-Az provider register --namespace Microsoft.OperationalInsights --wait | Out-Null
-Invoke-Az group create -n $ResourceGroup -l $Location -o none
+# Reuse an existing group: resources may live in a different region than their group.
+if (Test-Az group show -n $ResourceGroup) { Write-Host "Resource group exists, reusing it." }
+else { Invoke-Az group create -n $ResourceGroup -l $Location -o none }
 if (Test-Az containerapp env show -n $EnvName -g $ResourceGroup) { Write-Host "Environment exists, reusing it." }
 else { Invoke-Az containerapp env create -n $EnvName -g $ResourceGroup -l $Location -o none }
 
