@@ -102,7 +102,7 @@ Latest run (Groq `openai/gpt-oss-120b`, 0 failed LLM calls):
 
 Prompt change, measured: the first pair prompt called a conflict "both cannot be satisfied at once", so the model passed "stop within 200 ms" vs "stop within 500 ms" as compatible. Redefining conflict as "different values for the same limit" moved pair precision/recall from 0.938/0.882 to 0.889/0.941: one more real conflict found, one more false alarm.
 
-Embedding prefilter: 16 of 17 gold pairs (0.941) were similar enough to reach the LLM, while only about 35 of the 5,050 possible pairs were sent.
+Embedding prefilter: 16 of 17 gold pairs (0.941) were similar enough to reach the LLM; the other pairs among the 5,050 possible ones are never sent to it.
 
 Full table: [eval/results.md](eval/results.md). Most misses are irregular passives ("sent", "shown", "kept") and vague words outside the list. Most false alarms come from "minimum"/"maximum"/"at least" used with a defined reference instead of a number. Those cases are what the LLM rewrite step is for.
 
