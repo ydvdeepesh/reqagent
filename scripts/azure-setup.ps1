@@ -11,9 +11,9 @@
   Creates (all inside one resource group, so deleting the group removes everything):
     - Container Apps environment + Log Analytics workspace
     - Container app "reqagent" (0.5 CPU, 1 GiB, scales to zero, at most 1 replica)
-  And outside the group:
-    - Entra app registration "reqagent-github" with a federated credential for
-      GitHub Actions on main, and Contributor on the resource group only.
+    - Managed identity "reqagent-github" with a federated credential for GitHub Actions
+      on main, and Contributor on the resource group only (no Entra app registration,
+      which university tenants usually block)
 #>
 param(
     [string]$ResourceGroup = "reqagent-rg",
@@ -139,34 +139,26 @@ $fqdn = Invoke-Az containerapp show -n $AppName -g $ResourceGroup --query proper
 Write-Host "App URL: https://$fqdn" -ForegroundColor Green
 
 # --- Step 4 ------------------------------------------------------------------
-Step 4 "GitHub Actions login (OIDC)" "Creates app registration 'reqagent-github' that only GitHub Actions on $Repo main can use, with Contributor on '$ResourceGroup' only. No password or client secret is created."
-$appId = Invoke-Az ad app list --display-name "reqagent-github" --query "[0].appId" -o tsv
-if (-not $appId) {
-    try { $appId = Invoke-Az ad app create --display-name "reqagent-github" --query appId -o tsv }
-    catch {
-        Write-Host "Could not create an app registration. University tenants often block this." -ForegroundColor Yellow
-        Write-Host "Fallback: deploy by hand after each merge with:"
-        Write-Host "  az containerapp update -n $AppName -g $ResourceGroup --image ghcr.io/$($Repo.ToLower()):<commit-sha>"
-        Write-Host "The app itself is running at https://$fqdn"
-        exit 0
-    }
-}
-if (-not (Test-Az ad sp show --id $appId)) { Invoke-Az ad sp create --id $appId -o none }
+Step 4 "GitHub Actions login (OIDC)" "Creates managed identity 'reqagent-github' in '$ResourceGroup' that only GitHub Actions on $Repo main can use, with Contributor on '$ResourceGroup' only. No password or client secret is created, and no directory (Entra) permissions are needed."
+$idName = "reqagent-github"
+if (-not (Test-Az identity show -n $idName -g $ResourceGroup)) { Invoke-Az identity create -n $idName -g $ResourceGroup -l $Location -o none }
+$identity = Invoke-Az identity show -n $idName -g $ResourceGroup -o json | ConvertFrom-Json
+$appId = $identity.clientId
 $fedName = "github-main"
-$fedExists = Invoke-Az ad app federated-credential list --id $appId --query "[?name=='$fedName'] | length(@)" -o tsv
-if ($fedExists -eq "0") {
-    $fedFile = New-TemporaryFile
-    @{ name = $fedName; issuer = "https://token.actions.githubusercontent.com"; subject = "repo:${Repo}:ref:refs/heads/main"; audiences = @("api://AzureADTokenExchange") } |
-        ConvertTo-Json | Set-Content -Path $fedFile -Encoding ascii
-    Invoke-Az ad app federated-credential create --id $appId --parameters "@$fedFile" -o none
-    Remove-Item $fedFile
+if (-not (Test-Az identity federated-credential show -n $fedName --identity-name $idName -g $ResourceGroup)) {
+    Invoke-Az identity federated-credential create -n $fedName --identity-name $idName -g $ResourceGroup `
+        --issuer "https://token.actions.githubusercontent.com" --subject "repo:${Repo}:ref:refs/heads/main" `
+        --audiences "api://AzureADTokenExchange" -o none
 }
 $scope = "/subscriptions/$SubId/resourceGroups/$ResourceGroup"
-$hasRole = Invoke-Az role assignment list --assignee $appId --scope $scope --role Contributor --query "length(@)" -o tsv
+$principal = $identity.principalId
+# filter locally instead of --assignee, which would need directory read access
+$hasRole = Invoke-Az role assignment list --scope $scope --query "[?principalId=='$principal' && roleDefinitionName=='Contributor'] | length(@)" -o tsv
 if ($hasRole -eq "0") {
-    # a brand-new service principal can take a few seconds to become visible to role assignments
+    # a brand-new identity can take a few seconds to become visible to role assignments
     Start-Sleep -Seconds 20
-    Invoke-Az role assignment create --assignee $appId --role Contributor --scope $scope -o none
+    Invoke-Az role assignment create --assignee-object-id $principal --assignee-principal-type ServicePrincipal `
+        --role Contributor --scope $scope -o none
 }
 
 # --- Step 5 ------------------------------------------------------------------
@@ -194,4 +186,4 @@ if ($ghReady) {
 Write-Host ""
 Write-Host "All set. App: https://$fqdn" -ForegroundColor Green
 Write-Host "Every push to main now builds, tests on kind, publishes the image and rolls it out here."
-Write-Host "Remove everything later with: az group delete -n $ResourceGroup  (and az ad app delete --id $appId)"
+Write-Host "Remove everything later with: az group delete -n $ResourceGroup"

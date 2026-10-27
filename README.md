@@ -132,7 +132,7 @@ The app runs on Azure Container Apps (0.5 CPU, 1 GiB, scales to zero, at most on
 .\scripts\azure-setup.ps1
 ```
 
-The script walks through each step and waits for Enter before running it. It creates a resource group with a Container Apps environment and the app, and stores API keys from `.env` as Container Apps secrets. It also creates an Entra app registration that GitHub Actions can use through OIDC (no stored password, Contributor on the resource group only). Re-running it is safe.
+The script walks through each step and waits for Enter before running it. It creates a resource group with a Container Apps environment and the app, and stores API keys from `.env` as Container Apps secrets. It also creates a user-assigned managed identity with a federated credential that GitHub Actions on `main` uses through OIDC (no stored password, Contributor on the resource group only). A managed identity is used instead of an Entra app registration because university tenants usually block app registrations for students. Re-running it is safe.
 
 After that, every push to `main` runs the `deploy` job: OIDC login, `az containerapp update` to the new image (tagged with the commit SHA), and a `/health` check against the public URL.
 
